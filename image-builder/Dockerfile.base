@@ -1,6 +1,7 @@
-FROM koichirok/docker-opnsense:image-builder as builder
+FROM docker-opnsense:image-builder as builder
 
 ARG OPNSENSE_VERSION
+ARG OPNSENSE_ARCH=amd64
 
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 WORKDIR /tmp
@@ -10,9 +11,9 @@ RUN test "$OPNSENSE_VERSION" \
     && . /builder/functions.bash \
     && mirror=$(select_fastest_mirror) \
     && echo "Selected mirror: $mirror" \
-    && img_url="$(build_release_image_url ${OPNSENSE_VERSION} -m "$mirror")" \
+    && img_url="$(build_release_image_url ${OPNSENSE_VERSION} -m "$mirror" -a "${OPNSENSE_ARCH}")" \
     && raw_image="$(basename "${img_url}")" \
-    && chksum_url="$(build_release_checksum_url ${OPNSENSE_VERSION} -m "$mirror")" \
+    && chksum_url="$(build_release_checksum_url ${OPNSENSE_VERSION} -m "$mirror" -a "${OPNSENSE_ARCH}")" \
     && wget -nv "${img_url}" "${chksum_url}" \
     && echo -n "Verify download: " \
     && grep -F "${raw_image}" "$(basename "${chksum_url}")" | sha256sum -c - \
@@ -31,5 +32,6 @@ RUN test "$OPNSENSE_VERSION" \
 FROM scratch as qemu-image
 
 ARG OPNSENSE_VERSION
+ARG OPNSENSE_ARCH=amd64
 
-COPY --from=builder /OPNsense-*-nano-amd64.qcow2 /
+COPY --from=builder /OPNsense-*-nano-${OPNSENSE_ARCH}.qcow2 /

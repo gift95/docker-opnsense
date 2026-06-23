@@ -1,14 +1,16 @@
 # syntax=docker/dockerfile:1-labs
 ARG OPNSENSE_SERIES
-FROM koichirok/docker-opnsense:${OPNSENSE_SERIES}-image as base-image
+ARG OPNSENSE_ARCH=amd64
+FROM docker-opnsense:${OPNSENSE_SERIES}-${OPNSENSE_ARCH}-image as base-image
 
-FROM koichirok/docker-opnsense:image-builder as builder
+FROM docker-opnsense:image-builder as builder
 
 ARG OPNSENSE_VERSION
+ARG OPNSENSE_ARCH=amd64
 ARG WITH_FASTEST_MIRROR="yes"
-ENV IMAGE_PATH="/OPNsense-${OPNSENSE_VERSION}-nano-amd64.qcow2"
+ENV IMAGE_PATH="/OPNsense-${OPNSENSE_VERSION}-nano-${OPNSENSE_ARCH}.qcow2"
 
-COPY --from=base-image /OPNsense-*-nano-amd64.qcow2 "${IMAGE_PATH}"
+COPY --from=base-image /OPNsense-*-nano-${OPNSENSE_ARCH}.qcow2 "${IMAGE_PATH}"
 
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 WORKDIR /tmp
@@ -18,14 +20,36 @@ COPY ./src /builder
 # create sparse qcow2 image at /
 RUN --security=insecure \
     . /builder/functions.bash \
-    && qemu-system-x86_64 \
-        -nodefaults -enable-kvm -daemonize -m 3072 -nographic \
-        -pidfile qemu.pid \
-        -chardev "pty,id=ptyS0,logfile=console.log" -serial "chardev:ptyS0" \
-        -netdev "user,id=nd0" -device "virtio-net-pci,netdev=nd0" \
-        -netdev "user,id=nd1" -device "virtio-net-pci,netdev=nd1" \
-        -drive "file=${IMAGE_PATH},format=qcow2,cache=none" \
-        2>&1 | tee qemu.log \
+    && if [ "${OPNSENSE_ARCH}" = "aarch64" ]; then \
+        qemu-system-aarch64 \
+            -nodefaults -enable-kvm -daemonize -m 3072 -nographic \
+            -pidfile qemu.pid \
+            -chardev "pty,id=ptyS0,logfile=console.log" -serial "chardev:ptyS0" \
+            -netdev "user,id=nd0" -device "virtio-net-pci,netdev=nd0" \
+            -netdev "user,id=nd1" -device "virtio-net-pci,netdev=nd1" \
+            -drive "file=${IMAGE_PATH},format=qcow2,cache=none" \
+            -cpu host -machine virt \
+            2>&1 | tee qemu.log; \
+    elif [ "${OPNSENSE_ARCH}" = "arm" ]; then \
+        qemu-system-arm \
+            -nodefaults -enable-kvm -daemonize -m 3072 -nographic \
+            -pidfile qemu.pid \
+            -chardev "pty,id=ptyS0,logfile=console.log" -serial "chardev:ptyS0" \
+            -netdev "user,id=nd0" -device "virtio-net-pci,netdev=nd0" \
+            -netdev "user,id=nd1" -device "virtio-net-pci,netdev=nd1" \
+            -drive "file=${IMAGE_PATH},format=qcow2,cache=none" \
+            -cpu host -machine virt \
+            2>&1 | tee qemu.log; \
+    else \
+        qemu-system-x86_64 \
+            -nodefaults -enable-kvm -daemonize -m 3072 -nographic \
+            -pidfile qemu.pid \
+            -chardev "pty,id=ptyS0,logfile=console.log" -serial "chardev:ptyS0" \
+            -netdev "user,id=nd0" -device "virtio-net-pci,netdev=nd0" \
+            -netdev "user,id=nd1" -device "virtio-net-pci,netdev=nd1" \
+            -drive "file=${IMAGE_PATH},format=qcow2,cache=none" \
+            2>&1 | tee qemu.log; \
+    fi \
     && serial=$(grep ptyS0 qemu.log | grep -o '/dev/pts/[0-9]*') \
     && pid=$(cat qemu.pid) \
     && echo -n "Perfoming update..." \
@@ -54,5 +78,6 @@ RUN --security=insecure \
 FROM scratch
 
 ARG OPNSENSE_VERSION
+ARG OPNSENSE_ARCH=amd64
 
-COPY --from=builder /OPNsense-${OPNSENSE_VERSION}-nano-amd64.qcow2 /
+COPY --from=builder /OPNsense-${OPNSENSE_VERSION}-nano-${OPNSENSE_ARCH}.qcow2 /

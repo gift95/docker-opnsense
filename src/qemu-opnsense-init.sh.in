@@ -8,6 +8,7 @@ CONSOLE_LOGFILE="$OPNSENSE_LOG_DIR/console.log"
 OPNSENSE_RUNNING_NETWORK_CONFIG="$OPNSENSE_RUN_STATE_DIR/network.env"
 QEMU_MONITOR="telnet:localhost:7100,server,nowait,nodelay"
 SKIP_NETWORK_UNCONFIG="${SKIP_NETWORK_UNCONFIG:-no}"
+OPNSENSE_ARCH="${OPNSENSE_ARCH:-amd64}"
 
 # shellcheck source=/dev/null
 . /lib/lsb/init-functions
@@ -19,40 +20,84 @@ fi
 
 # start qemu instance
 start() {
-    local image_format
+    local image_format qemu_bin
     local -a qemu_args
     case "$OPNSENSE_IMAGE_PATH" in
         *.qcow2) image_format=qcow2;;
         *)       image_format=raw;;
     esac
-    qemu_args+=(
-        -nodefaults -enable-kvm
-        -pidfile "$PIDFILE"
-        -daemonize
-        -cpu "host,kvm=on,l3-cache=on,migratable=no"
-        -smp "1,sockets=1,dies=1,cores=1,threads=1"
-        -m "$OPNSENSE_RAM_SIZE"
-        # Note: q35 chipset is supported by OPNsense >= 21.x
-        -machine "type=q35,graphics=off,vmport=off,dump-guest-core=off,hpet=off,accel=kvm"
 
-        # Allow to connect to the serial console via pty device
-        -nographic
-        -chardev "pty,id=$OPNSENSE_QEMU_SERIAL_DEV_NAME,logfile=$CONSOLE_LOGFILE"
-        -serial "chardev:$OPNSENSE_QEMU_SERIAL_DEV_NAME"
-        -monitor "$QEMU_MONITOR"
-        -netdev "tap,id=nd0,ifname=$OPNSENSE_LAN_DEVICE_NAME,script=no,downscript=no,br=$OPNSENSE_LAN_BRIDGE_NAME"
-        -device "virtio-net-pci,netdev=nd0"
-        -netdev "user,id=nd1"
-        -device "virtio-net-pci,netdev=nd1"
-        -drive "file=$OPNSENSE_IMAGE_PATH,if=virtio,format=$image_format,cache=none,aio=native,discard=on,detect-zeroes=on"
-        -name "qemu-opnsense"
-    )
-    # -global kvm-pit.lost_tick_policy=discard
-    # -device virtio-balloon-pci,id=balloon0,bus=pcie.0,addr=0x4
-    # -object rng-random,id=objrng0,filename=/dev/urandom
-    # -device virtio-rng-pci,rng=objrng0,id=rng0,bus=pcie.0,addr=0x1c
-    log_daemon_msg "Starting QEMU instance for OPNsense" qemu-system-x86_64
-    qemu-system-x86_64 "${qemu_args[@]}" > "$LOGFILE" 2>&1
+    case "$OPNSENSE_ARCH" in
+        aarch64)
+            qemu_bin=qemu-system-aarch64
+            qemu_args+=(
+                -nodefaults -enable-kvm
+                -pidfile "$PIDFILE"
+                -daemonize
+                -cpu "host"
+                -smp "1,sockets=1,dies=1,cores=1,threads=1"
+                -m "$OPNSENSE_RAM_SIZE"
+                -machine "type=virt,graphics=off,accel=kvm"
+                -nographic
+                -chardev "pty,id=$OPNSENSE_QEMU_SERIAL_DEV_NAME,logfile=$CONSOLE_LOGFILE"
+                -serial "chardev:$OPNSENSE_QEMU_SERIAL_DEV_NAME"
+                -monitor "$QEMU_MONITOR"
+                -netdev "tap,id=nd0,ifname=$OPNSENSE_LAN_DEVICE_NAME,script=no,downscript=no,br=$OPNSENSE_LAN_BRIDGE_NAME"
+                -device "virtio-net-pci,netdev=nd0"
+                -netdev "user,id=nd1"
+                -device "virtio-net-pci,netdev=nd1"
+                -drive "file=$OPNSENSE_IMAGE_PATH,if=virtio,format=$image_format,cache=none,aio=native,discard=on,detect-zeroes=on"
+                -name "qemu-opnsense"
+            )
+            ;;
+        arm)
+            qemu_bin=qemu-system-arm
+            qemu_args+=(
+                -nodefaults -enable-kvm
+                -pidfile "$PIDFILE"
+                -daemonize
+                -cpu "host"
+                -smp "1,sockets=1,dies=1,cores=1,threads=1"
+                -m "$OPNSENSE_RAM_SIZE"
+                -machine "type=virt,graphics=off,accel=kvm"
+                -nographic
+                -chardev "pty,id=$OPNSENSE_QEMU_SERIAL_DEV_NAME,logfile=$CONSOLE_LOGFILE"
+                -serial "chardev:$OPNSENSE_QEMU_SERIAL_DEV_NAME"
+                -monitor "$QEMU_MONITOR"
+                -netdev "tap,id=nd0,ifname=$OPNSENSE_LAN_DEVICE_NAME,script=no,downscript=no,br=$OPNSENSE_LAN_BRIDGE_NAME"
+                -device "virtio-net-pci,netdev=nd0"
+                -netdev "user,id=nd1"
+                -device "virtio-net-pci,netdev=nd1"
+                -drive "file=$OPNSENSE_IMAGE_PATH,if=virtio,format=$image_format,cache=none,aio=native,discard=on,detect-zeroes=on"
+                -name "qemu-opnsense"
+            )
+            ;;
+        *)
+            qemu_bin=qemu-system-x86_64
+            qemu_args+=(
+                -nodefaults -enable-kvm
+                -pidfile "$PIDFILE"
+                -daemonize
+                -cpu "host,kvm=on,l3-cache=on,migratable=no"
+                -smp "1,sockets=1,dies=1,cores=1,threads=1"
+                -m "$OPNSENSE_RAM_SIZE"
+                -machine "type=q35,graphics=off,vmport=off,dump-guest-core=off,hpet=off,accel=kvm"
+                -nographic
+                -chardev "pty,id=$OPNSENSE_QEMU_SERIAL_DEV_NAME,logfile=$CONSOLE_LOGFILE"
+                -serial "chardev:$OPNSENSE_QEMU_SERIAL_DEV_NAME"
+                -monitor "$QEMU_MONITOR"
+                -netdev "tap,id=nd0,ifname=$OPNSENSE_LAN_DEVICE_NAME,script=no,downscript=no,br=$OPNSENSE_LAN_BRIDGE_NAME"
+                -device "virtio-net-pci,netdev=nd0"
+                -netdev "user,id=nd1"
+                -device "virtio-net-pci,netdev=nd1"
+                -drive "file=$OPNSENSE_IMAGE_PATH,if=virtio,format=$image_format,cache=none,aio=native,discard=on,detect-zeroes=on"
+                -name "qemu-opnsense"
+            )
+            ;;
+    esac
+
+    log_daemon_msg "Starting QEMU instance for OPNsense" "$qemu_bin"
+    "$qemu_bin" "${qemu_args[@]}" > "$LOGFILE" 2>&1
     rc=$?
     log_end_msg $rc
     if [ $rc -ne 0 ]; then

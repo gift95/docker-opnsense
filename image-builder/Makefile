@@ -3,7 +3,8 @@ include	../mk/common.mk
 SERIES=	$(firstword $(subst ., ,$(VERSION))).$(word 2,$(subst ., ,$(VERSION)))
 BUILDER_TAG=	image-builder
 PATCH_VERSION=	$(word 3,$(subst ., ,$(VERSION)))
-image_tag=	$(1)-image
+ARCH?=	amd64
+image_tag=	$(1)-$(ARCH)-image
 IMAGE_TAG=	$(call image_tag,$(VERSION))
 
 all: builder image
@@ -20,6 +21,7 @@ test:
 	@echo "BUILDER_TAG: $(BUILDER_TAG)"
 	@echo "IMAGE_TAG: $(IMAGE_TAG)"
 	@echo "PATCH_VERSION: $(PATCH_VERSION)"
+	@echo "ARCH: $(ARCH)"
 #all: src/* Dockerfile.builder Dockerfile.base Dockerfile.update
 
 src/* Dockerfile.builder: builder
@@ -39,8 +41,10 @@ push-image: push-$(if $(PATCH_VERSION),update,base)-image
 Dockerfile.base: build-base-image
 build-base-image: IMAGE_TAG = $(call image_tag,$(SERIES))
 build-base-image: check-vars
-	@echo "Building base image"
-	@docker build . -f Dockerfile.base -t $(REPO):$(IMAGE_TAG) --build-arg OPNSENSE_VERSION=$(SERIES)
+	@echo "Building base image for architecture: $(ARCH)"
+	@docker build . -f Dockerfile.base -t $(REPO):$(IMAGE_TAG) \
+		--build-arg OPNSENSE_VERSION=$(SERIES) \
+		--build-arg OPNSENSE_ARCH=$(ARCH)
 push-base-image: IMAGE_TAG = $(call image_tag,$(SERIES))
 push-base-imgage: check-vars build-base-image
 	@echo "Pushing base image"
@@ -50,16 +54,17 @@ Dockerfile.update: build-update-image
 build-update-image: insecure-builder do-build-update-image clean-insecure-builder
 push-update-image: insecure-builder do-push-update-image clean-insecure-builder
 do-build-update-image: check-vars
-	@echo "Building updated image..."
-	@docker build . -f Dockerfile.update -t "$(REPO):$(VERSION)-image" \
+	@echo "Building updated image for architecture: $(ARCH)..."
+	@docker build . -f Dockerfile.update -t "$(REPO):$(VERSION)-$(ARCH)-image" \
 		--builder insecure-builder \
 		--load \
 		--allow security.insecure \
 		--build-arg OPNSENSE_VERSION="$(VERSION)" \
-		--build-arg OPNSENSE_SERIES="$(SERIES)"
+		--build-arg OPNSENSE_SERIES="$(SERIES)" \
+		--build-arg OPNSENSE_ARCH=$(ARCH)
 do-push-update-image: check-vars do-build-update-image
 	@echo "Pushing updated image"
-	@docker push $(REPO):$(VERSION)-image
+	@docker push $(REPO):$(VERSION)-$(ARCH)-image
 
 insecure-builder:
 ifeq ($(shell docker buildx inspect insecure-builder > /dev/null 2>&1; echo $$?), 0)
@@ -80,8 +85,8 @@ clean: clean-insecure-builder
 	@echo "Cleaning up..."
 	@docker rmi $(REPO):image-builder || true
 ifdef VERSION
-	@docker image rm $(REPO):$(SERIES)-image || true
-	@docker image rm $(REPO):$(VERSION)-image || true
+	@docker image rm $(REPO):$(SERIES)-$(ARCH)-image || true
+	@docker image rm $(REPO):$(VERSION)-$(ARCH)-image || true
 else
 	@echo No VERSION specified. skip deleting versioned images
 endif

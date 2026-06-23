@@ -1,5 +1,6 @@
 ARG OPNSENSE_VERSION
-FROM opnsense:${OPNSENSE_VERSION}-image AS opnsense-image
+ARG OPNSENSE_ARCH=amd64
+FROM opnsense:${OPNSENSE_VERSION}-${OPNSENSE_ARCH}-image AS opnsense-image
 
 FROM debian:trixie-slim
 
@@ -20,11 +21,14 @@ RUN apt-get update \
         picocom \
         procps \
         qemu-system-x86 \
+        qemu-system-arm \
+        qemu-system-aarch64 \
         qemu-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ARG OPNSENSE_VERSION="24.1"
+ARG OPNSENSE_ARCH="amd64"
 ARG OPNSENSE_IMAGE_DIR="/var/lib/qemu"
 ARG OPNSENSE_LOG_DIR="/var/log/qemu-opnsense"
 ARG OPNSENSE_RUN_STATE_DIR="/var/run/qemu-opnsense"
@@ -38,7 +42,8 @@ ARG OPNSENSE_GRACETIME=180
 ARG OPNSENSE_API_KEY_FILE="/root/.opnsense_api_key.json"
 
 ENV OPNSENSE_VERSION=${OPNSENSE_VERSION}
-ENV OPNSENSE_IMAGE=OPNsense-${OPNSENSE_VERSION}-nano-amd64.qcow2
+ENV OPNSENSE_ARCH=${OPNSENSE_ARCH}
+ENV OPNSENSE_IMAGE=OPNsense-${OPNSENSE_VERSION}-nano-${OPNSENSE_ARCH}.qcow2
 ENV OPNSENSE_IMAGE_PATH=${OPNSENSE_IMAGE_DIR}/${OPNSENSE_IMAGE}
 ENV OPNSENSE_LOG_DIR=${OPNSENSE_LOG_DIR}
 ENV OPNSENSE_RUN_STATE_DIR=${OPNSENSE_RUN_STATE_DIR}

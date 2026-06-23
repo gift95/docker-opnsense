@@ -1,5 +1,7 @@
 include mk/common.mk
 
+ARCH?=	amd64
+
 .PHONY: all build builder image docker-login src test-src push lint clean
 
 all: build
@@ -11,7 +13,7 @@ builder:
 	@make -C image-builder builder
 
 image:
-	@make -C image-builder image
+	@make -C image-builder image ARCH=$(ARCH)
 
 test-src:
 	@make -C src test
@@ -26,10 +28,10 @@ Dockerfile: Dockerfile.in
 		$< > $@
 
 build: Dockerfile src check-vars
-	@docker build . -t ${REPO}:${VERSION} --build-arg OPNSENSE_VERSION=${VERSION}
+	@docker build . -t ${REPO}:${VERSION}-${ARCH} --build-arg OPNSENSE_VERSION=${VERSION} --build-arg OPNSENSE_ARCH=${ARCH}
 
 push: check-vars
-	@docker push ${REPO}:${VERSION}
+	@docker push ${REPO}:${VERSION}-${ARCH}
 
 lint:
 	@hadolint Dockerfile	
