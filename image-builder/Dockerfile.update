@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1-labs
 ARG OPNSENSE_SERIES
 ARG OPNSENSE_ARCH=amd64
-FROM docker-opnsense:${OPNSENSE_SERIES}-${OPNSENSE_ARCH}-image as base-image
+FROM opnsense:${OPNSENSE_SERIES}-${OPNSENSE_ARCH}-image as base-image
 
-FROM docker-opnsense:image-builder as builder
+FROM opnsense:image-builder as builder
 
 ARG OPNSENSE_VERSION
 ARG OPNSENSE_ARCH=amd64
