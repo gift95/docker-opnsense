@@ -1,7 +1,7 @@
 version: "3"
 services:
   opnsense:
-    image: opnsense:24.1.3
+    image: docker-opnsense:24.1.3
     #devices:
     #  - /dev/kvm
     #  - /dev/net/tun

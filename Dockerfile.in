@@ -1,6 +1,6 @@
 ARG OPNSENSE_VERSION
 ARG OPNSENSE_ARCH=amd64
-FROM opnsense:${OPNSENSE_VERSION}-${OPNSENSE_ARCH}-image AS opnsense-image
+FROM docker-opnsense:${OPNSENSE_VERSION}-${OPNSENSE_ARCH}-image AS opnsense-image
 
 FROM debian:trixie-slim
 
