@@ -20,8 +20,12 @@ RUN test "$OPNSENSE_VERSION" \
          && bunzip2 "${raw_image}" \
          && echo "done." \
          && qcow2_image="${raw_image%.bz2}" \
+         && echo -n "Rename image to standard format..." \
+         && final_image="OPNsense-${OPNSENSE_VERSION}-nano-${OPNSENSE_ARCH}.qcow2" \
+         && mv "${qcow2_image}" "${final_image}" \
+         && echo "done." \
          && echo -n "Make qcow2 image sparse..." \
-         && qemu-img convert -c -O qcow2 "${qcow2_image}" "/${qcow2_image}" \
+         && qemu-img convert -c -O qcow2 "${final_image}" "/${final_image}" \
          && echo "done."; \
        else \
          wget -nv "${img_url}" "${chksum_url}" \
